@@ -24,9 +24,10 @@
 extern bool debug;
 
 #define debug_printf(format, ...) \
-  if (debug) \
+  if (debug) { \
     fprintf(stdout, "[PID %d] %s+%d(%s) " format, getpid(), \
-      __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);
+      __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
+    fflush(stdout); }
 
 static bool allow_sensitive_settings_write = false;
 
@@ -279,14 +280,24 @@ static bool reject_sensitive_settings_write(const uint8_t *msg, uint32_t msg_len
 
   bool reject = false;
 
-  sbp_msg_callbacks_node_t callbacks;
+  sbp_msg_callbacks_node_t callback;
 
   sbp_state_set_io_context(&sbp_state, &context);
-  sbp_register_callback(&sbp_state, SBP_MSG_SETTINGS_WRITE, write_callback, &reject, &callbacks);
+  sbp_register_callback(&sbp_state, SBP_MSG_SETTINGS_WRITE, write_callback, &reject, &callback);
 
-  s8 retval = sbp_process(&sbp_state, one_buffer_read);
+  s8 retval = SBP_OK;
+  for( /*empty*/;
+       retval == SBP_OK;
+       retval = sbp_process(&sbp_state, one_buffer_read))
+  {
+    continue;
+  }
 
-  debug_printf("filter: sensitive write reject: %c, retval: %c\n", reject, retval);
+  if (retval != SBP_OK_CALLBACK_EXECUTED) {
+    piksi_log(LOG_WARNING, "Error during SBP processing: %d", retval);
+  }
+
+  debug_printf("filter: sensitive write reject: %hhd, retval: %hhd\n", reject, retval);
 
   return reject;
 }

@@ -20,6 +20,7 @@
 #include <dlfcn.h>
 #include <syslog.h>
 
+#define PROGRAM_NAME "zmq_adapter"
 #define PROTOCOL_LIBRARY_PATH_ENV_NAME "PROTOCOL_LIBRARY_PATH"
 #define PROTOCOL_LIBRARY_PATH_DEFAULT "/usr/lib/zmq_protocols"
 #define READ_BUFFER_SIZE 65536
@@ -29,10 +30,6 @@
 #define ZSOCK_RESTART_RETRY_DELAY_ms 1
 #define FRAMER_NONE_NAME "none"
 #define FILTER_NONE_NAME "none"
-
-#define SYSLOG_IDENTITY "zmq_adapter"
-#define SYSLOG_FACILITY LOG_LOCAL0
-#define SYSLOG_OPTIONS (LOG_CONS | LOG_PID | LOG_NDELAY)
 
 typedef enum {
   IO_INVALID,
@@ -361,6 +358,8 @@ static void terminate_handler(int signum)
   if (getpid() == getpgid(0)) {
     killpg(0, signum);
   }
+
+  logging_deinit();
 
   /* Exit */
   _exit(EXIT_SUCCESS);
@@ -1112,7 +1111,7 @@ void io_loop_terminate(void)
 
 int main(int argc, char *argv[])
 {
-  openlog(SYSLOG_IDENTITY, SYSLOG_OPTIONS, SYSLOG_FACILITY);
+  logging_init(PROGRAM_NAME);
 
   setpgid(0, 0); /* Set PGID = PID */
 
